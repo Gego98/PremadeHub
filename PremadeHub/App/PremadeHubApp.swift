@@ -1,14 +1,12 @@
-//
-//  PremadeHubApp.swift
-//  PremadeHub
-//
-//  Created by Filip Gegovski on 12/25/25.
-//
-
 import SwiftUI
+import FirebaseCore
 
 @main
 struct PremadeHubApp: App {
+    init() {
+        FirebaseApp.configure()
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
