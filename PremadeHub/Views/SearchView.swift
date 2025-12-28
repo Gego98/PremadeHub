@@ -1,214 +1,137 @@
 import SwiftUI
-import FirebaseAuth
-import FirebaseFirestore
 
 struct SearchView: View {
-    @State private var searchType = 0 // 0 = Duo, 1 = Clash
-    @State private var selectedRole = "All"
-    @State private var selectedRankFilter = "All"
-    @State private var players: [Player] = []
-    @State private var isLoading = false
+    @StateObject private var viewModel = SearchViewModel()
     
     let roles = ["All", "Top", "Jungle", "Mid", "ADC", "Support", "Fill"]
-    // For filtering, we'll use major ranks
     let rankFilters = ["All", "Unranked", "Iron", "Bronze", "Silver", "Gold", "Platinum", "Emerald", "Diamond", "Master+"]
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(red: 0.01, green: 0.09, blue: 0.15)
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Header
-                    VStack(spacing: 15) {
-                        Text("Find Players")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
-                        
-                        // Search Type Picker
-                        Picker("Search Type", selection: $searchType) {
-                            Text("Duo").tag(0)
-                            Text("Clash").tag(1)
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
+        ZStack {
+            Color(red: 0.01, green: 0.09, blue: 0.15)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header
+                VStack(spacing: 15) {
+                    Text("Find Players")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal)
-                        .onChange(of: searchType) { _, _ in
-                            loadPlayers()
-                        }
-                        
-                        // Filters
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                // Role Filter
-                                Menu {
-                                    ForEach(roles, id: \.self) { role in
-                                        Button(role) {
-                                            selectedRole = role
-                                            loadPlayers()
-                                        }
-                                    }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "gamecontroller.fill")
-                                        Text(selectedRole)
-                                        Image(systemName: "chevron.down")
-                                            .font(.caption)
-                                    }
-                                    .padding(.horizontal, 15)
-                                    .padding(.vertical, 8)
-                                    .background(Color.white.opacity(0.1))
-                                    .foregroundColor(.white)
-                                    .cornerRadius(20)
-                                }
-                                
-                                // Rank Filter
-                                Menu {
-                                    ForEach(rankFilters, id: \.self) { rank in
-                                        Button(rank) {
-                                            selectedRankFilter = rank
-                                            loadPlayers()
-                                        }
-                                    }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "trophy.fill")
-                                        Text(selectedRankFilter)
-                                        Image(systemName: "chevron.down")
-                                            .font(.caption)
-                                    }
-                                    .padding(.horizontal, 15)
-                                    .padding(.vertical, 8)
-                                    .background(Color.white.opacity(0.1))
-                                    .foregroundColor(.white)
-                                    .cornerRadius(20)
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-                    .padding(.top)
-                    .padding(.bottom, 10)
-                    .background(Color(red: 0.01, green: 0.09, blue: 0.15))
                     
-                    // Player List
-                    if isLoading {
-                        Spacer()
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .cyan))
-                        Spacer()
-                    } else if players.isEmpty {
-                        Spacer()
-                        VStack(spacing: 15) {
-                            Image(systemName: "person.2.slash")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray)
-                            
-                            Text("No players found")
-                                .font(.title3)
-                                .foregroundColor(.white)
-                            
-                            Text("Try adjusting your filters")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                        Spacer()
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(players) { player in
-                                    PlayerCardView(player: player)
+                    // Search Type Picker
+                    Picker("Search Type", selection: $viewModel.searchType) {
+                        Text("Duo").tag(0)
+                        Text("Clash").tag(1)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding(.horizontal)
+                    .onChange(of: viewModel.searchType) { _, newValue in
+                        viewModel.updateSearchType(newValue)
+                    }
+                    
+                    // Filters
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            // Role Filter
+                            Menu {
+                                ForEach(roles, id: \.self) { role in
+                                    Button(role) {
+                                        viewModel.updateRole(role)
+                                    }
                                 }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "gamecontroller.fill")
+                                    Text(viewModel.selectedRole)
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 15)
+                                .padding(.vertical, 8)
+                                .background(Color.white.opacity(0.1))
+                                .foregroundColor(.white)
+                                .cornerRadius(20)
                             }
-                            .padding()
+                            
+                            // Rank Filter
+                            Menu {
+                                ForEach(rankFilters, id: \.self) { rank in
+                                    Button(rank) {
+                                        viewModel.updateRank(rank)
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "trophy.fill")
+                                    Text(viewModel.selectedRank)
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 15)
+                                .padding(.vertical, 8)
+                                .background(Color.white.opacity(0.1))
+                                .foregroundColor(.white)
+                                .cornerRadius(20)
+                            }
                         }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.top)
+                .padding(.bottom, 10)
+                .background(Color(red: 0.01, green: 0.09, blue: 0.15))
+                
+                // Player List
+                if viewModel.isLoading {
+                    Spacer()
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .cyan))
+                    Spacer()
+                } else if viewModel.players.isEmpty {
+                    Spacer()
+                    VStack(spacing: 15) {
+                        Image(systemName: "person.2.slash")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No players found")
+                            .font(.title3)
+                            .foregroundColor(.white)
+                        
+                        Text("Try adjusting your filters")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(viewModel.players) { player in
+                                PlayerCardView(
+                                    player: player,
+                                    teamType: viewModel.searchType == 0 ? .duo : .clash
+                                )
+                            }
+                        }
+                        .padding()
                     }
                 }
             }
-            .onAppear {
-                loadPlayers()
-            }
         }
-    }
-    
-    private func loadPlayers() {
-        isLoading = true
-        players = []
-        
-        let db = Firestore.firestore()
-        var query: Query = db.collection("users")
-        
-        // Filter by search type
-        if searchType == 0 {
-            query = query.whereField("lookingForDuo", isEqualTo: true)
-        } else {
-            query = query.whereField("lookingForClash", isEqualTo: true)
-        }
-        
-        query.getDocuments { snapshot, error in
-            isLoading = false
-            
-            if let error = error {
-                print("Error fetching players: \(error.localizedDescription)")
-                return
-            }
-            
-            guard let documents = snapshot?.documents else { return }
-            
-            var fetchedPlayers: [Player] = []
-            
-            for document in documents {
-                let data = document.data()
-                
-                // Skip current user
-                if document.documentID == Auth.auth().currentUser?.uid {
-                    continue
-                }
-                
-                let rank = data["rank"] as? String ?? "Unranked"
-                let player = Player(
-                    id: document.documentID,
-                    summonerName: data["summonerName"] as? String ?? "",
-                    summonerTag: data["summonerTag"] as? String ?? "",
-                    region: data["region"] as? String ?? "",
-                    rank: rank,
-                    role: data["role"] as? String ?? "Fill"
-                )
-                
-                // Apply role filter
-                if selectedRole != "All" && player.role != selectedRole {
-                    continue
-                }
-                
-                // Apply rank filter
-                if selectedRankFilter != "All" {
-                    if !matchesRankFilter(rank: rank, filter: selectedRankFilter) {
-                        continue
-                    }
-                }
-                
-                fetchedPlayers.append(player)
-            }
-            
-            players = fetchedPlayers
-        }
-    }
-    
-    private func matchesRankFilter(rank: String, filter: String) -> Bool {
-        if filter == "Master+" {
-            return rank.contains("Master") || rank.contains("Grandmaster") || rank.contains("Challenger")
-        } else {
-            // For other ranks, check if the rank string starts with the filter
-            return rank.hasPrefix(filter)
+        .onAppear {
+            viewModel.loadPlayers()
         }
     }
 }
 
 struct PlayerCardView: View {
     let player: Player
+    let teamType: TeamType
+    @State private var isConnecting = false
+    @State private var hasSentInvitation = false
     
     var body: some View {
         HStack(spacing: 15) {
@@ -248,33 +171,72 @@ struct PlayerCardView: View {
             Spacer()
             
             // Connect Button
-            Button(action: {
-                // Handle connect action
-            }) {
-                Text("Connect")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-                    .background(Color.cyan)
-                    .cornerRadius(20)
+            Button(action: sendInvitation) {
+                if isConnecting {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .frame(width: 80)
+                } else if hasSentInvitation {
+                    Text("Sent")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(20)
+                } else {
+                    Text("Connect")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color.cyan)
+                        .cornerRadius(20)
+                }
             }
+            .disabled(isConnecting || hasSentInvitation)
         }
         .padding()
         .background(Color.white.opacity(0.05))
         .cornerRadius(15)
     }
-}
-
-// Player Model
-struct Player: Identifiable {
-    let id: String
-    let summonerName: String
-    let summonerTag: String
-    let region: String
-    let rank: String
-    let role: String
+    
+    private func sendInvitation() {
+        guard let currentUserId = AuthService.shared.getCurrentUserId() else { return }
+        
+        isConnecting = true
+        
+        Task {
+            do {
+                // Check if invitation already exists
+                let exists = try await TeamService.shared.checkExistingInvitation(
+                    fromUserId: currentUserId,
+                    toUserId: player.id
+                )
+                
+                if exists {
+                    hasSentInvitation = true
+                    isConnecting = false
+                    return
+                }
+                
+                // Send invitation (Duo or Clash based on search type)
+                _ = try await TeamService.shared.sendTeamInvitation(
+                    fromUserId: currentUserId,
+                    toUserId: player.id,
+                    teamType: teamType
+                )
+                
+                hasSentInvitation = true
+            } catch {
+                print("Failed to send invitation: \(error.localizedDescription)")
+            }
+            
+            isConnecting = false
+        }
+    }
 }
 
 #Preview {

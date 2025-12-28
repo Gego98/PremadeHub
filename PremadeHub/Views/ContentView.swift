@@ -17,6 +17,7 @@ struct ContentView: View {
         }
         .onAppear {
             checkAuthenticationState()
+            setupAuthListener()
         }
     }
     
@@ -26,9 +27,18 @@ struct ContentView: View {
             isAuthenticated = true
         }
         
-        // Simulate loading delay (remove in production or adjust if needed)
+        // Simulate loading delay (remove in production or adjust as needed)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             isLoading = false
+        }
+    }
+    
+    private func setupAuthListener() {
+        // Listen for auth state changes (login/logout)
+        _ = Auth.auth().addStateDidChangeListener { _, user in
+            withAnimation {
+                isAuthenticated = (user != nil)
+            }
         }
     }
 }

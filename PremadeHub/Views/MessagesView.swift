@@ -1,21 +1,17 @@
 import SwiftUI
-import FirebaseAuth
-import FirebaseFirestore
 
 struct MessagesView: View {
-    @State private var conversations: [Conversation] = []
-    @State private var isLoading = true
+    @StateObject private var viewModel = MessagesViewModel()
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(red: 0.01, green: 0.09, blue: 0.15)
-                    .ignoresSafeArea()
-                
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .cyan))
-                } else if conversations.isEmpty {
+        ZStack {
+            Color(red: 0.01, green: 0.09, blue: 0.15)
+                .ignoresSafeArea()
+            
+            if viewModel.isLoading {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .cyan))
+            } else if viewModel.conversations.isEmpty {
                     // Empty State
                     VStack(spacing: 20) {
                         Image(systemName: "message.fill")
@@ -50,10 +46,10 @@ struct MessagesView: View {
                     // Conversations List
                     ScrollView {
                         VStack(spacing: 0) {
-                            ForEach(conversations) { conversation in
+                            ForEach(viewModel.conversations) { conversation in
                                 ConversationRowView(conversation: conversation)
                                 
-                                if conversation.id != conversations.last?.id {
+                                if conversation.id != viewModel.conversations.last?.id {
                                     Divider()
                                         .background(Color.gray.opacity(0.3))
                                         .padding(.leading, 70)
@@ -62,19 +58,9 @@ struct MessagesView: View {
                         }
                     }
                 }
-            }
-            .navigationBarTitleDisplayMode(.large)
-            .onAppear {
-                loadConversations()
-            }
         }
-    }
-    
-    private func loadConversations() {
-        // TODO: Implement conversations loading from Firestore
-        // For now, simulate loading
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            isLoading = false
+        .onAppear {
+            viewModel.loadConversations()
         }
     }
 }
@@ -138,21 +124,6 @@ struct ConversationRowView: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-}
-
-// Conversation Model
-struct Conversation: Identifiable {
-    let id: String
-    let otherUser: ConversationUser
-    let lastMessage: String
-    let lastMessageTime: Date
-    let unreadCount: Int
-}
-
-struct ConversationUser: Identifiable {
-    let id: String
-    let summonerName: String
-    let summonerTag: String
 }
 
 #Preview {
